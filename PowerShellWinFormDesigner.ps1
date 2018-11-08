@@ -13,6 +13,8 @@
 # 2. Refactor Properties and events section to streamline their functions and variable use
 # 3. Redesign Main form to allow for additon of adding more events to events section along with code specific to that event
 # 4. Add ability for tabbed forms and mulit window forms
+# 5. Set message when property is left blank
+# 6. Clear Main Form on Design form close... (Clear out datagridviews)
 #-------
 # Notes: Anytime a control is added to the form or code is used to add or change properties, it is really just adding it to the Control Grid list box in the Controls Section.
 # It does show up on the new form, but that is just a physical representation of the controls listed in that box. The code will perform functions on and sets and changes
