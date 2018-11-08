@@ -6,12 +6,6 @@
 # Changelog:
 # 1.0     - 4/24/2015 Began as "PowerShell Form Builder" by Z.Alex <https://gallery.technet.microsoft.com/scriptcenter/Powershell-Form-Builder-3bcaf2c7>
 # 2.1.1   - Codebase is based on the Version 2.1.1 by mozers <https://bitbucket.org/mozers/powershell-formdesigner>
-# 2.5     - 11/08/18
-#           1. Added new closing design form functionality, form no longer needs to have a batch file to open and cleanly close the main script and design form.
-#           2. Refactored the code to meet modern variables and function based standards.
-#           3. Added functionlity to allow for ease of adding new controls and and the ability to see which parent it belogs to.
-#           4. Added the ability to choose a name for the new form.
-#           5. Fixed error bug in Properties section that happened when adding a properties with a null value
 # ------
 # TODO:
 # 1. Add the ability to choose between saving the form for use as standalone form code (for use in .dotsourcing the form into a main script file) or
