@@ -58,16 +58,22 @@ function Open-FilenameDialog($dlgName) {
 }
 
 #--- Form Functions ---
-function Set-ButtonDefault {
+function Set-defaultsPSFDMain {
      $bSaveForm.Enabled = $false
      $bAddControl.Enabled = $false
      $bRemoveControl.Enabled = $false
+     $dgvControls.Rows.Clear()
+     $cbControl.SelectedItem = $null
      $bAddProp.Enabled = $false
      $bRemoveProp.Enabled = $false
+     $dgvProps.Rows.Clear()
+     $cbAddProp.SelectedItem = $null
+     $dgvEvents.Rows.Clear()
+     $cbAddEvent.SelectedItem = $null
      $bNewForm.Enabled = $true
      $bOpenForm.Enabled = $true
 }
-function Set-ButtonsOnDesignOpen {
+function Set-BtnsFrmDesignOpen {
      # New Form Settings
      $bSaveForm.Enabled = $true
      $bAddControl.Enabled = $true
@@ -77,7 +83,7 @@ function Set-ButtonsOnDesignOpen {
      $bNewForm.Enabled = $false
      $bOpenForm.Enabled = $false
 }
-function Close-DesignForm {
+function Close-FrmDesign {
      $ButtonType = [System.Windows.MessageBoxButton]::YesNo
      $MessageboxTitle = "Save Form Design?"
      $Messageboxbody = "Do you want to save this new form design?"
@@ -85,11 +91,11 @@ function Close-DesignForm {
      $result = [System.Windows.MessageBox]::Show($Messageboxbody, $MessageboxTitle, $ButtonType, $messageicon)
      switch ($result) {
           'Yes' {
-               Save-DesignForm
-               Set-ButtonDefault
+               Save-FrmDesign
+               Set-defaultsPSFDMain
           }
           'No' {
-               Set-ButtonDefault
+               Set-defaultsPSFDMain
           }
      }
 
@@ -320,8 +326,8 @@ function Add-Control {
 #--- Properties Functions ---
 function List-AvailableProperties {
      # Fills in the All Properties Dropdown Box with all available properties of the selected control
-     $cbProp.Items.Clear()
-     $Global:currentCtrl | Get-Member -membertype properties | ForEach-Object {$cbProp.Items.Add($_.Name)}
+     $cbAddProp.Items.Clear()
+     $Global:currentCtrl | Get-Member -membertype properties | ForEach-Object {$cbAddProp.Items.Add($_.Name)}
 }
 function List-Properties {
      # Fills in Current Control Set Propeties Grid box with all configured properties of the current selected control
@@ -350,7 +356,6 @@ function List-Properties {
 function Add-Property($propName) {
      # Adds Selected property to the Current control Set properties Grid box
      $Global:currentCtrl.Tag += $propName
-     $cbprop.SelectedItem = $null
      List-Properties
 }
 function Delete-Property($propName) {
@@ -422,15 +427,18 @@ function Add-Event {
 #region === Forms ===
 
 #--- New Form ---
-function Create-NewDesignForm {
+function Create-NewFrmDesign {
      # On New form button Click, Creates new design form and sets Form Designer standard settings
-     $formName = [Microsoft.VisualBasic.Interaction]::InputBox('Enter a Name for the New Form.', 'New Design Form Name?', 'Form0')
+     $formName = [Microsoft.VisualBasic.Interaction]::InputBox('Enter a Name for the New Form', 'New Design Form Name?', 'Form0')
      $Global:frmDesign = New-Object System.Windows.Forms.Form
      $Global:frmDesign.Name = "$formName"
      $Global:frmDesign.Text = "$formName"
      $Global:frmDesign.Tag = @('Name', 'Width', 'Height', 'Text')
+     $Global:frmDesign.Width = 500
+     $Global:frmDesign.Height = 500
      $Global:frmDesign.Add_ResizeEnd( {List-Properties} )
-     $Global:frmDesign.Add_FormClosing( {Close-DesignForm} )
+     $Global:frmDesign.Add_FormClosing( {Close-FrmDesign} )
+     $Global:frmDesign.StartPosition = "CenterScreen"
      $Global:frmDesign.Show()
      $Global:currentCtrl = $Global:frmDesign
      Update-ControlList
@@ -438,11 +446,11 @@ function Create-NewDesignForm {
      List-Properties
      List-AvailableEvents
      List-Events
-     Set-ButtonsOnDesignOpen
+     Set-BtnsFrmDesignOpen
 }
 
 #--- Save Form ---
-function Save-DesignForm {
+function Save-FrmDesign {
      # On Save button Click, Configures file to be saved by setting all code to be added to the ps1 file
      function Enumerate-SaveControls ($container) {
           # Loop Through Controls to Build Source Code
@@ -637,7 +645,7 @@ function Open-DesignForm {
                     $Global:frmDesign.Name = $formName
                     Set-ControlTag $Global:frmDesign
                     $Global:frmDesign.Add_ResizeEnd( {List-Properties} )
-                    $Global:frmDesign.Add_FormClosing( {Close-DesignForm} )
+                    $Global:frmDesign.Add_FormClosing( {Close-FrmDesign} )
                     $Global:frmDesign.Show()
                     $Global:currentCtrl = $Global:frmDesign
                     Update-ControlList
@@ -645,7 +653,7 @@ function Open-DesignForm {
                     List-Properties
                     List-AvailableEvents
                     List-Events
-                    Set-ButtonsOnDesignOpen
+                    Set-BtnsFrmDesignOpen
                }
                else {
                     # Error if forms variable not found in code, code should just be the form and no other code in the file
@@ -668,19 +676,19 @@ function Open-DesignForm {
 # --- Build and Show Main Window ---
 
 #frmPSFD
-$frmPSFD = New-Object System.Windows.Forms.Form
-$frmPSFD.ClientSize = New-Object System.Drawing.Size(549, 524)
-$frmPSFD.FormBorderStyle = 'Fixed3D'
-$frmPSFD.MaximizeBox = $false
-$frmPSFD.Text = 'PowerShell WinForm Designer ' + $Version
+$frmPSFDMain = New-Object System.Windows.Forms.Form
+$frmPSFDMain.ClientSize = New-Object System.Drawing.Size(549, 524)
+$frmPSFDMain.FormBorderStyle = 'Fixed3D'
+$frmPSFDMain.MaximizeBox = $false
+$frmPSFDMain.Text = 'PowerShell WinForm Designer ' + $Version
 
 #bNewForm
 $bNewForm = New-Object System.Windows.Forms.Button
 $bNewForm.Location = New-Object System.Drawing.Point(12, 12)
 $bNewForm.Size = New-Object System.Drawing.Size(88, 23)
 $bNewForm.Text = "New Form"
-$bNewForm.Add_Click( {Create-NewDesignForm} )
-$frmPSFD.Controls.Add($bNewForm)
+$bNewForm.Add_Click( {Create-NewFrmDesign} )
+$frmPSFDMain.Controls.Add($bNewForm)
 
 #bOpenForm
 $bOpenForm = New-Object System.Windows.Forms.Button
@@ -688,7 +696,7 @@ $bOpenForm.Location = New-Object System.Drawing.Point(114, 12)
 $bOpenForm.Size = New-Object System.Drawing.Size(88, 23)
 $bOpenForm.Text = "Open Form"
 $bOpenForm.Add_Click( {Open-DesignForm} )
-$frmPSFD.Controls.Add($bOpenForm)
+$frmPSFDMain.Controls.Add($bOpenForm)
 
 #bSaveForm
 $bSaveForm = New-Object System.Windows.Forms.Button
@@ -696,8 +704,8 @@ $bSaveForm.Location = New-Object System.Drawing.Point(450, 12)
 $bSaveForm.Size = New-Object System.Drawing.Size(88, 23)
 $bSaveForm.Text = "Save Form"
 $bSaveForm.Enabled = $false
-$bSaveForm.Add_Click( {Save-DesignForm} )
-$frmPSFD.Controls.Add($bSaveForm)
+$bSaveForm.Add_Click( {Save-FrmDesign} )
+$frmPSFDMain.Controls.Add($bSaveForm)
 
 # --- Controls Section ---
 
@@ -706,7 +714,7 @@ $gbControls = New-Object Windows.Forms.GroupBox
 $gbControls.Location = New-Object System.Drawing.Point(12, 41)
 $gbControls.Size = New-Object System.Drawing.Size(260, 472)
 $gbControls.Text = "Controls:"
-$frmPSFD.Controls.Add($gbControls)
+$frmPSFDMain.Controls.Add($gbControls)
 
 #cbAddControl
 $cbControl = New-Object Windows.Forms.ComboBox
@@ -771,20 +779,20 @@ $gbProps = New-Object Windows.Forms.GroupBox
 $gbProps.Location = New-Object System.Drawing.Point(278, 41)
 $gbProps.Size = New-Object System.Drawing.Size(260, 350)
 $gbProps.Text = 'Properties:'
-$frmPSFD.Controls.Add($gbProps)
+$frmPSFDMain.Controls.Add($gbProps)
 
 #cbAddProp
-$cbprop = New-Object Windows.Forms.ComboBox
-$cbprop.Location = New-Object System.Drawing.Point(6, 14)
-$cbprop.Size = New-Object System.Drawing.Size(182, 21)
-$gbProps.Controls.Add($cbprop)
+$cbAddProp = New-Object Windows.Forms.ComboBox
+$cbAddProp.Location = New-Object System.Drawing.Point(6, 14)
+$cbAddProp.Size = New-Object System.Drawing.Size(182, 21)
+$gbProps.Controls.Add($cbAddProp)
 
 #bAddProp
 $bAddProp = New-Object System.Windows.Forms.Button
 $bAddProp.Location = New-Object System.Drawing.Point(196, 14)
 $bAddProp.Size = New-Object System.Drawing.Size(58, 23)
 $bAddProp.Text = "Add"
-$bAddProp.Add_Click( {Add-Property $cbprop.Text})
+$bAddProp.Add_Click( {Add-Property $cbAddProp.Text})
 $bAddProp.Enabled = $false
 $gbProps.Controls.Add($bAddProp)
 
@@ -827,7 +835,7 @@ $gbEvents = New-Object System.Windows.Forms.GroupBox
 $gbEvents.Text = "Event Handlers:"
 $gbEvents.Size = New-Object System.Drawing.Size(260, 114)
 $gbEvents.Location = New-Object System.Drawing.Point(278, 398)
-$frmPSFD.Controls.Add($gbEvents)
+$frmPSFDMain.Controls.Add($gbEvents)
 
 #cbEvents
 $cbAddEvent = New-Object System.Windows.Forms.ComboBox
@@ -858,6 +866,6 @@ $gbEvents.Controls.Add($dgvEvents)
 
 #--- Start Form ---
 
-[void]$frmPSFD.ShowDialog()
+[void]$frmPSFDMain.ShowDialog()
 
 #endregion === Main Application Window ===
