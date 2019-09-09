@@ -63,7 +63,7 @@ function Set-defaultsPSFDMain {
      $bAddControl.Enabled = $false
      $bRemoveControl.Enabled = $false
      $dgvControls.Rows.Clear()
-     $cbControl.SelectedItem = $null
+     $cbAddControl.SelectedItem = $null
      $bAddProp.Enabled = $false
      $bRemoveProp.Enabled = $false
      $dgvProps.Rows.Clear()
@@ -167,7 +167,7 @@ function Set-MouseUP {
      $this.Cursor = "SizeAll"
      $Global:curFirstX = 0
      $Global:curFirstY = 0
-     List-Properties
+     Update-CurrentCrtlPropsGrid
 }
 function Set-ResizeAndMoveWithKeyboard {
      # Allows resizing and fine movement of current control with keyboard arrow keys
@@ -175,42 +175,42 @@ function Set-ResizeAndMoveWithKeyboard {
           if ($_.KeyCode -eq 'Left' -and $_.Modifiers -eq 'None') {
                $Global:currentCtrl.Left -= 1
                $_.Handled = $true
-               List-Properties
+               Update-CurrentCrtlPropsGrid
           }
           elseif ($_.KeyCode -eq 'Left' -and $_.Modifiers -eq 'Control') {
                $Global:currentCtrl.Width -= 1
                $_.Handled = $true
-               List-Properties
+               Update-CurrentCrtlPropsGrid
           }
           elseif ($_.KeyCode -eq 'Right' -and $_.Modifiers -eq 'None') {
                $Global:currentCtrl.Left += 1
                $_.Handled = $true
-               List-Properties
+               Update-CurrentCrtlPropsGrid
           }
           elseif ($_.KeyCode -eq 'Right' -and $_.Modifiers -eq 'Control') {
                $Global:currentCtrl.Width += 1
                $_.Handled = $true
-               List-Properties
+               Update-CurrentCrtlPropsGrid
           }
           elseif ($_.KeyCode -eq 'Up' -and $_.Modifiers -eq 'None') {
                $Global:currentCtrl.Top -= 1
                $_.Handled = $true
-               List-Properties
+               Update-CurrentCrtlPropsGrid
           }
           elseif ($_.KeyCode -eq 'Up' -and $_.Modifiers -eq 'Control') {
                $Global:currentCtrl.Height -= 1
                $_.Handled = $true
-               List-Properties
+               Update-CurrentCrtlPropsGrid
           }
           elseif ($_.KeyCode -eq 'Down' -and $_.Modifiers -eq 'None') {
                $Global:currentCtrl.Top += 1
                $_.Handled = $true
-               List-Properties
+               Update-CurrentCrtlPropsGrid
           }
           elseif ($_.KeyCode -eq 'Down' -and $_.Modifiers -eq 'Control') {
                $Global:currentCtrl.Height += 1
                $_.Handled = $true
-               List-Properties
+               Update-CurrentCrtlPropsGrid
           }
           elseif ($_.KeyCode -eq 'Delete' -and $_.Modifiers -eq 'None') {
                $_.Handled = $true
@@ -225,7 +225,7 @@ function Get-CtrlType($ctrl) {
      return $ctrl.GetType().FullName -replace "System.Windows.Forms.", ""
 }
 function Remove-CurrentCtrl {
-     # Removes a selected (From the Grid Box or the form) Control from the form
+     # Removes a selected Control from the form (From the Grid Box or the form)
      $Global:frmDesign.Controls.Remove($Global:currentCtrl)
      $Global:currentCtrl = $Global:frmDesign
      Update-ControlList
@@ -267,14 +267,14 @@ function Set-CurrentCtrl($Arg) {
           Select-CurrentCtrlInControlList
      }
      $Global:currentCtrl.Focus()
-     List-AvailableProperties
-     List-Properties
-     List-AvailableEvents
-     List-Events
+     Update-AvailablePropsInCB
+     Update-CurrentCrtlPropsGrid
+     Update-AvailableEventsCB
+     Update-CurrentCtrlEventsGrid
 }
 function Add-Control {
      # Actions to take when the add button in the controls section is clicked, adds control to design and allows configuration
-     function Build-CtrlName($ctrlType) {
+     function Set-CtrlName($ctrlType) {
           # Builds New Control Name and adds a number to end of the name to differentiate Controls (ex. ListBox0, ListBox1, etc.)
           $ctrlNames = $dgvControls.Rows | ForEach-Object {$_.Cells[0].Value}
           $num = 0
@@ -285,9 +285,9 @@ function Add-Control {
           return $newCtrlName
      }
 
-     $ctrlType = $cbControl.Items[$cbControl.SelectedIndex]
+     $ctrlType = $cbAddControl.Items[$cbAddControl.SelectedIndex]
      $Control = New-Object System.Windows.Forms.$ctrlType
-     $Control.Name = Build-CtrlName $ctrlType
+     $Control.Name = Set-CtrlName $ctrlType
      $Control.Cursor = 'SizeAll'
      if ($ctrlType -eq 'ComboBox') {
           # Disables integralHeight on Combo and list box controls
@@ -296,13 +296,13 @@ function Add-Control {
      elseif ($ctrlType -eq 'ListBox') {
           $Control.IntegralHeight = $false
      }
-     $Control.Tag = @('Name', 'Left', 'Top', 'Width', 'Height') # Adds all standard properties for all controls
+     $Control.Tag = @('Name', 'Left', 'Top', 'Width', 'Height') # Adds all standard properties to all controls
      if (@('Button', 'CheckBox', 'GroupBox', 'Label', 'RadioButton') -contains $ctrlType) {
-          # Adds special properties for these sepcific controls
+          # Adds special properties for these specific controls
           $Control.Text = $Control.Name
           $Control.Tag += 'Text'
      }
-     # Sets the abilties to resize and move the new control with the mouse on the form design (see Functions above)
+     # Sets the abilties to resize and move the new control with the mouse on the design form (see Functions above)
      $Control.Add_PreviewKeyDown( {$_.IsInputKey = $true} )
      $Control.Add_KeyDown( {Set-ResizeAndMoveWithKeyboard} )
      $Control.Add_MouseDown( {Set-MouseDown} )
@@ -324,13 +324,13 @@ function Add-Control {
 }
 
 #--- Properties Functions ---
-function List-AvailableProperties {
+function Update-AvailablePropsInCB {
      # Fills in the All Properties Dropdown Box with all available properties of the selected control
      $cbAddProp.Items.Clear()
      $Global:currentCtrl | Get-Member -membertype properties | ForEach-Object {$cbAddProp.Items.Add($_.Name)}
 }
-function List-Properties {
-     # Fills in Current Control Set Propeties Grid box with all configured properties of the current selected control
+function Update-CurrentCrtlPropsGrid {
+     # Fills in Current Controls Properties Grid box with all configured properties of the current selected control
      try {
           $dgvProps.Rows.Clear()
      }
@@ -354,16 +354,16 @@ function List-Properties {
      }
 }
 function Add-Property($propName) {
-     # Adds Selected property to the Current control Set properties Grid box
+     # Adds Selected property to the Current controls properties Grid box
      $Global:currentCtrl.Tag += $propName
-     List-Properties
+     Update-CurrentCrtlPropsGrid
 }
-function Delete-Property($propName) {
+function Remove-Property($propName) {
      # Adds Selected property to the Current control Set properties Grid box
      $Global:currentCtrl.Tag = $Global:currentCtrl.Tag | Where-Object {$_ -ne $propName}
-     List-Properties
+     Update-CurrentCrtlPropsGrid
 }
-function Property-CellEndEdit {
+function Set-PropGridCellEndEdit {
      # Fixes Entries in the properties value cell if they are manually edited to ensure proper functionality
      $propName = $dgvProps.CurrentRow.Cells[0].Value
      $value = $dgvProps.CurrentRow.Cells[1].Value
@@ -393,19 +393,19 @@ function Property-CellEndEdit {
      if ($propName -eq 'Name') {
           Update-ControlList
      }
-     List-Properties
+     Update-CurrentCrtlPropsGrid
 }
 
 #--- Event Functions ---
-function List-AvailableEvents {
+function Update-AvailableEventsCB {
      # Lists all available events to the selected control in the Event Handlers Dropdown box
      $cbAddEvent.Items.Clear()
      $Global:currentCtrl | Get-Member | ForEach-Object {if ($_ -like '*EventHandler*') {
                $cbAddEvent.Items.Add($_.Name)
           }}
 }
-function List-Events {
-     # Refreshs the events Grid box and Adds the Selected event handler when needed
+function Update-CurrentCtrlEventsGrid {
+     # Refreshs the events Grid box and Adds the Selected event handler of the current control to the list
      $dgvEvents.Rows.Clear()
      [array]$events = $Global:currentCtrl | Get-Member | Where-Object {$_ -like '*EventHandler*'}
      foreach ($eventItem in $events) {
@@ -416,10 +416,10 @@ function List-Events {
      }
 }
 function Add-Event {
-     # On button click, grabs the event handler selected and sends it to Listevents to add it to the grid box.
+     # On button click, grabs the event handler selected and adds to the current control Tag porperty.
      $event = $cbAddEvent.Items[$cbAddEvent.SelectedIndex]
      $Global:currentCtrl.Tag += 'Add_' + $event + '($' + $Global:currentCtrl.Name + '_' + $event + ')'
-     List-Events
+     Update-CurrentCtrlEventsGrid
 }
 
 #endregion === Functions ===
@@ -433,25 +433,25 @@ function Create-NewFrmDesign {
      $Global:frmDesign = New-Object System.Windows.Forms.Form
      $Global:frmDesign.Name = "$formName"
      $Global:frmDesign.Text = "$formName"
-     $Global:frmDesign.Tag = @('Name', 'Width', 'Height', 'Text')
      $Global:frmDesign.Width = 500
      $Global:frmDesign.Height = 500
-     $Global:frmDesign.Add_ResizeEnd( {List-Properties} )
+     $Global:frmDesign.Tag = @('Name', 'Width', 'Height', 'Text')
+     $Global:frmDesign.Add_ResizeEnd( {Update-CurrentCrtlPropsGrid} )
      $Global:frmDesign.Add_FormClosing( {Close-FrmDesign} )
      $Global:frmDesign.StartPosition = "CenterScreen"
      $Global:frmDesign.Show()
      $Global:currentCtrl = $Global:frmDesign
      Update-ControlList
-     List-AvailableProperties
-     List-Properties
-     List-AvailableEvents
-     List-Events
+     Update-AvailablePropsInCB
+     Update-CurrentCrtlPropsGrid
+     Update-AvailableEventsCB
+     Update-CurrentCtrlEventsGrid
      Set-BtnsFrmDesignOpen
 }
 
 #--- Save Form ---
 function Save-FrmDesign {
-     # On Save button Click, Configures file to be saved by setting all code to be added to the ps1 file
+     # On Save button Click, Configures file to be saved by building all code to be added to the ps1 file
      function Enumerate-SaveControls ($container) {
           # Loop Through Controls to Build Source Code
           [string]$newline = "`r`n"
@@ -460,7 +460,7 @@ function Save-FrmDesign {
           [int]$width = 0
           [int]$height = 0
           $Global:source += $newline + '#' + $container.Name + $newline # Control code Description/Headline Comment
-          [string]$ctrlType = Get-CtrlType $container # Grab Control Type
+          [string]$ctrlType = Get-CtrlType $container # Grabs the Controls Type
           $Global:source += '$' + $container.Name + ' = New-Object System.Windows.Forms.' + $ctrlType + $newline
           [array]$props = $container | Get-Member -membertype properties # Get all properties of Control
           foreach ($prop in $props) {
@@ -522,13 +522,13 @@ function Save-FrmDesign {
           }
           # --- Containers ---
           if ($ctrlType -eq 'Form' -or $ctrlType -eq 'GroupBox') {
-               # Adds groupbox to the code and then adds all controls attached to the groupbox.
+               # Adds the containers to the code and then adds all controls attached to the Container.
                foreach ($ctrl in $container.Controls) {
                     Enumerate-SaveControls $ctrl
                }
           }
      }
-
+     # Main process to build code for savefile
      # Add Global Properties to the code
      $newline = "`r`n"
      $Global:source = 'Add-Type -AssemblyName System.Windows.Forms' + $newline
@@ -538,7 +538,7 @@ function Save-FrmDesign {
      # Runs Enumerate-SaveControls Function to add form code.
      Enumerate-SaveControls $Global:frmDesign
 
-     # Adds Show Dialog Code (Last Line) NOTE: Can be erased if dot-sourcing into a MainProgram file, keeps form code seperate from main code
+     # Adds Show Dialog Code (Last Line in code) NOTE: Can be erased if dot-sourcing into a MainProgram file, keeps form code seperate from main code (Furture Feature)
      $Global:source += $newline + '[void]$' + $Global:frmDesign.Name + '.ShowDialog()' + $newline
 
      # Sets file name for the savefile
@@ -644,15 +644,15 @@ function Open-DesignForm {
                     Enumerate-LoadControls $Global:frmDesign
                     $Global:frmDesign.Name = $formName
                     Set-ControlTag $Global:frmDesign
-                    $Global:frmDesign.Add_ResizeEnd( {List-Properties} )
+                    $Global:frmDesign.Add_ResizeEnd( {Update-CurrentCrtlPropsGrid} )
                     $Global:frmDesign.Add_FormClosing( {Close-FrmDesign} )
                     $Global:frmDesign.Show()
                     $Global:currentCtrl = $Global:frmDesign
                     Update-ControlList
-                    List-AvailableProperties
-                    List-Properties
-                    List-AvailableEvents
-                    List-Events
+                    Update-AvailablePropsInCB
+                    Update-CurrentCrtlPropsGrid
+                    Update-AvailableEventsCB
+                    Update-CurrentCtrlEventsGrid
                     Set-BtnsFrmDesignOpen
                }
                else {
@@ -717,11 +717,11 @@ $gbControls.Text = "Controls:"
 $frmPSFDMain.Controls.Add($gbControls)
 
 #cbAddControl
-$cbControl = New-Object Windows.Forms.ComboBox
-$cbControl.Location = New-Object System.Drawing.Point(6, 14)
-$cbControl.Size = New-Object System.Drawing.Size(182, 21)
-$cbControl.Items.AddRange(@("Button", "CheckBox", "ComboBox", "DataGridView", "DateTimePicker", "GroupBox", "Label", "ListBox", "ListView", "RadioButton", "PictureBox", "RichTextBox", "TextBox", "TreeView"))
-$gbControls.Controls.Add($cbControl)
+$cbAddControl = New-Object Windows.Forms.ComboBox
+$cbAddControl.Location = New-Object System.Drawing.Point(6, 14)
+$cbAddControl.Size = New-Object System.Drawing.Size(182, 21)
+$cbAddControl.Items.AddRange(@("Button", "CheckBox", "ComboBox", "DataGridView", "DateTimePicker", "GroupBox", "Label", "ListBox", "ListView", "RadioButton", "PictureBox", "RichTextBox", "TextBox", "TreeView"))
+$gbControls.Controls.Add($cbAddControl)
 
 #bAddControl
 $bAddControl = New-Object System.Windows.Forms.Button
@@ -801,7 +801,7 @@ $bRemoveProp = New-Object System.Windows.Forms.Button
 $bRemoveProp.Location = New-Object System.Drawing.Point(196, 40)
 $bRemoveProp.Size = New-Object System.Drawing.Size(58, 23)
 $bRemoveProp.Text = "Remove"
-$bRemoveProp.Add_Click( {Delete-Property $dgvProps.CurrentRow.Cells[0].Value} )
+$bRemoveProp.Add_Click( {Remove-Property $dgvProps.CurrentRow.Cells[0].Value} )
 $bRemoveProp.Enabled = $false
 $gbProps.Controls.Add($bRemoveProp)
 
@@ -825,7 +825,7 @@ $dgvProps.ColumnHeadersHeightSizeMode = 'DisableResizing'
 $dgvProps.RowHeadersVisible = $false
 $dgvProps.AllowUserToResizeRows = $false
 $dgvProps.AllowUserToAddRows = $false
-$dgvProps.Add_CellEndEdit( {Property-CellEndEdit} )
+$dgvProps.Add_CellEndEdit( {Set-PropGridCellEndEdit} )
 $gbProps.Controls.Add($dgvProps)
 
 #--- Events Section ---
