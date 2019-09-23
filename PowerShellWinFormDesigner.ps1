@@ -551,10 +551,10 @@ function Save-FrmDesign {
 
 #--- Open Existing Form ---
 function Open-DesignForm {
-     # On Open Form Button Click, Searches for the form information in the file chosen and opens it into the Form Designer (Must be in the format the designer knows)
-     function Set-ControlTag($ctrl) {
-          # Gets all Control Names and their properties
-          $pattern = '(.*)\$' + $ctrl.Name + '\.(?:(\w+)\s*=|(Add_[^\r\n]+))'
+     # On Open Form Button Click, Searches for the form information in the file chosen and opens it into the Form Designer (Must be in the Standard Win form format)
+     function Get-FormControlsWithProps($ctrl) {
+          # Gets all Control info and their properties
+          $pattern = '(.*)\$' + $ctrl.Name + '\.(?:(\w+)\s*=|(Add_[^\r\n]+))' # Matches patterns like $GroupBox0.word or $GroupBox0.Add_
           $allMatches = [regex]::matches($Global:source, $pattern)
           $tags = @()
           foreach ($item in $allMatches) {
@@ -586,7 +586,7 @@ function Open-DesignForm {
      function Enumerate-LoadControls($container) {
           # Enumerates and loads all controls into the designer
           foreach ($ctrl in $container.Controls) {
-               Set-ControlTag $ctrl
+               Get-FormControlsWithProps $ctrl
                $ctrlType = Get-CtrlType $ctrl
                if ($ctrlType -eq 'GroupBox') {
                     Enumerate-LoadControls $ctrl
@@ -608,13 +608,13 @@ function Open-DesignForm {
                }
           }
      }
-
+     # Main code to open a form
      $filename = Open-FilenameDialog 'OpenFileDialog'
      if ($filename -notlike '') {
           # Get the source of the file, and run a search to find the data for the form to be opened.
           $Global:source = get-content $filename | Out-String
-          $pattern = '(.*)\$(\w+)\s*=\s*New\-Object\s+(System\.)?Windows\.Forms\.Form' # Pattern to find all Form creation entries
-          $allMatches = [regex]::matches($Global:source, $pattern) # Find all Form creation entries and load it into a array
+          $pattern = '(.*)\$(\w+)\s*=\s*New\-Object\s+(System\.)?Windows\.Forms\.Form' # Pattern to find the Beggining of the Form Code by finding "New-Object System.Windows.Forms.Form"
+          $allMatches = [regex]::matches($Global:source, $pattern)
           foreach ($item in $allMatches) {
                [string]$comment = $item.Groups[1]
                if (-not $comment.Contains('#')) {
@@ -622,11 +622,11 @@ function Open-DesignForm {
                }
           }
           if ($formName) {
-               # Use the form name to find the showdialog entry
+               # Use the form name to find the showdialog entry and remove the entry it will be loaded as code in the editor, we do not want it to run like a active form
                $find = '\$' + $formName + '\.Show(Dialog)?\(\)'
                $Global:source = $Global:source -replace $find, ''
 
-               Invoke-Expression -Command $Global:source # Excute the Form Showdialog entry to open the form for editing
+               Invoke-Expression -Command $Global:source # Excute the Form code to open the form for editing
 
                try {
                     $Global:frmDesign = Get-Variable -ValueOnly $formName # Try to find the forms variable
@@ -635,15 +635,17 @@ function Open-DesignForm {
                }
                if ($Global:frmDesign) {
                     # If the variable is postive, check to see if it is a form and load the properties and events to the Enumerate-LoadControls
-                    Get-Variable | Where-Object {[string]$_.Value -like 'System.Windows.Forms.*'} | Where-Object {try {
+                    Get-Variable | Where-Object {[string]$_.Value -like 'System.Windows.Forms.*'} | Where-Object {
+                         try {
                               $_.Value.Name = $_.Name
                          }
                          catch {
-                         }}
+                         }
+                    }
 
                     Enumerate-LoadControls $Global:frmDesign
                     $Global:frmDesign.Name = $formName
-                    Set-ControlTag $Global:frmDesign
+                    Get-FormControlsWithProps $Global:frmDesign
                     $Global:frmDesign.Add_ResizeEnd( {Update-CurrentCrtlPropsGrid} )
                     $Global:frmDesign.Add_FormClosing( {Close-FrmDesign} )
                     $Global:frmDesign.Show()
@@ -656,7 +658,7 @@ function Open-DesignForm {
                     Set-BtnsFrmDesignOpen
                }
                else {
-                    # Error if forms variable not found in code, code should just be the form and no other code in the file
+                    # Error if forms variable not found in code
                     $message = "Can't find variable $" + $formName + "`nPlease open ONLY SOURCE OF FORM.`nExclude other code."
                     [System.Windows.Forms.MessageBox]::Show($message, 'Error opening existing Form', 'OK', 'Error')
                }
