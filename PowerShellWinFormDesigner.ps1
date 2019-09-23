@@ -626,7 +626,7 @@ function Open-DesignForm {
                $find = '\$' + $formName + '\.Show(Dialog)?\(\)'
                $Global:source = $Global:source -replace $find, ''
 
-               Invoke-Expression -Command $Global:source # Excute the Form code to open the form for editing
+               Invoke-Expression -Command $Global:source # Execute the Form code to open the form for editing
 
                try {
                     $Global:frmDesign = Get-Variable -ValueOnly $formName # Try to find the forms variable
